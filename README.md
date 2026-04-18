@@ -26,53 +26,49 @@ It is designed for two use cases:
 - Windows
 - Linux
 
-The rendering engine depends on an existing compatible browser installation. **MdPdf** will try to resolve a local Chrome, Edge, or Chromium executable automatically, or it can use a configured browser path.
+The rendering engine depends on an existing compatible browser installation. Install Google Chrome, Microsoft Edge, or Chromium before running **MdPdf**. The app will try to resolve a local browser executable automatically, or it can use a configured browser path.
 
 ## Installation
 
 ### Windows
 
-Install the Windows package and run `mdpdf` from a terminal.
-
-Example:
+Install or update the Windows build with the installer script:
 
 ```powershell
-mdpdf .\README.md
+irm https://raw.githubusercontent.com/maffaciolli/MdPdf/main/scripts/install.ps1 | iex
 ```
 
-If the browser cannot be resolved automatically, pass it explicitly:
+Pin a specific version:
 
 ```powershell
-mdpdf .\README.md --browser-path "C:\Program Files\Google\Chrome\Application\chrome.exe"
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/maffaciolli/MdPdf/main/scripts/install.ps1))) -Version 1.2.3
 ```
 
-To persist the detected browser for future runs:
+This installs:
 
-```powershell
-mdpdf .\README.md --browser-path "C:\Program Files\Google\Chrome\Application\chrome.exe" --save-browser-path
-```
+- app files in `%LocalAppData%\Programs\MdPdf\current`
+- the `mdpdf` shim in `%LocalAppData%\Programs\MdPdf\bin\mdpdf.cmd`
+- config in `%LocalAppData%\MdPdf\MdPdf.config.json`
 
 ### Linux
 
-Install the Linux package and run `mdpdf` from a shell.
-
-Example:
+Install or update the Linux build with the installer script:
 
 ```bash
-mdpdf ./README.md
+curl -fsSL https://raw.githubusercontent.com/maffaciolli/MdPdf/main/scripts/install.sh | sh
 ```
 
-If auto-resolution is not enough, pass a browser path explicitly:
+Pin a specific version:
 
 ```bash
-mdpdf ./README.md --browser-path /usr/bin/google-chrome-stable
+curl -fsSL https://raw.githubusercontent.com/maffaciolli/MdPdf/main/scripts/install.sh | VERSION=1.2.3 sh
 ```
 
-To persist the resolved browser path:
+This installs:
 
-```bash
-mdpdf ./README.md --browser-path /usr/bin/google-chrome-stable --save-browser-path
-```
+- app files in `$HOME/.local/share/mdpdf/current`
+- the `mdpdf` symlink in `$HOME/.local/bin/mdpdf`
+- config in `${XDG_CONFIG_HOME:-$HOME/.config}/mdpdf/MdPdf.config.json`
 
 ## Quick Start
 
@@ -135,14 +131,14 @@ Flags:
 - `--browser-path <path>`
   - Uses the specified browser executable path.
 - `--save-browser-path`
-  - Persists the resolved browser path to the config file in the app root.
+  - Persists the resolved browser path to `MdPdf.config.json`.
 
 ## Browser Resolution
 
 **MdPdf** does not download Chromium during normal execution. Instead, it resolves an installed browser executable in this order:
 
 1. `--browser-path` from the CLI
-2. `browserPath` from **MdPdf.config.json**
+2. `browserPath` from `MdPdf.config.json`
 3. OS-specific browser discovery
 
 Current browser discovery behavior:
@@ -161,7 +157,10 @@ If a browser path is explicitly configured but the executable does not exist, **
 
 ## Configuration
 
-**MdPdf** stores the persisted browser path in a JSON file named **MdPdf.config.json** in the application base directory.
+**MdPdf** stores the persisted browser path in `MdPdf.config.json` at these locations:
+
+- Windows: `%LocalAppData%\MdPdf\MdPdf.config.json`
+- Linux: `${XDG_CONFIG_HOME:-$HOME/.config}/mdpdf/MdPdf.config.json`
 
 Example:
 
@@ -172,7 +171,7 @@ Example:
 ```
 
 The config file is optional. If it does not exist, **MdPdf** falls back to CLI arguments and automatic browser discovery.
-When you pass `--save-browser-path`, **MdPdf** writes the resolved browser executable path into this `.config.json` file for future runs.
+When you pass `--save-browser-path`, **MdPdf** writes the resolved browser executable path into this config file for future runs.
 
 ## Assets And Customization
 
@@ -255,10 +254,7 @@ Responsibilities:
 Prerequisites:
 
 - .NET 10 SDK
-- A compatible installed browser:
-  - Google Chrome
-  - Microsoft Edge
-  - Chromium
+- A compatible installed browser. Install Google Chrome, Microsoft Edge, or Chromium before running the app.
 
 Restore:
 
