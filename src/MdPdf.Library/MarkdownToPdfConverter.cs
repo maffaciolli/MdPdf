@@ -208,7 +208,7 @@ public static class MarkdownToPdfConverter
         Func<Uri, Task<string>>? assetDownloader
     )
     {
-        var assetsRoot = assetsDirectory ?? Path.Combine(Directory.GetCurrentDirectory(), "Assets");
+        var assetsRoot = assetsDirectory ?? AppPaths.GetAssetsPath();
         Directory.CreateDirectory(assetsRoot);
 
         var assetPath = Path.Combine(assetsRoot, fileName);

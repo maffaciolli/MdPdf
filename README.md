@@ -16,7 +16,7 @@ It is designed for two use cases:
 - Supports explicit `--light` and `--dark` theme selection.
 - Resolves an installed browser instead of downloading Chromium at runtime.
 - Supports browser-path persistence in a JSON config file under the user config directory.
-- Caches stylesheet and Mermaid assets into a local `Assets` folder for user customization.
+- Caches stylesheet and Mermaid assets into a per-user application data folder for reuse and customization.
 - Includes automated tests for parser, config, browser resolution, and HTML generation behavior.
 
 ## Supported Platforms
@@ -175,13 +175,19 @@ When you pass `--save-browser-path`, **MdPdf** writes the resolved browser execu
 
 ## Assets And Customization
 
-**MdPdf** stores runtime assets in an `Assets` folder under the current working directory.
+**MdPdf** stores runtime assets in a per-user application data `Assets` folder.
 
 Files used by the renderer:
 
 - `Assets/github-markdown-light.min.css`
 - `Assets/github-markdown-dark.min.css`
 - `Assets/mermaid.min.js`
+
+Default locations:
+
+- Windows: `%LocalAppData%\MdPdf\Assets`
+- Linux: `${XDG_DATA_HOME:-$HOME/.local/share}/mdpdf/Assets`
+- macOS: `~/Library/Application Support/MdPdf/Assets`
 
 Behavior:
 
