@@ -63,4 +63,53 @@ public class AppPathsTests
         // Assert
         path.ShouldBe("/Users/mathe/Library/Application Support/MdPdf/MdPdf.config.json");
     }
+
+    [Fact]
+    public void Must_resolve_windows_assets_path_under_local_application_data()
+    {
+        // Act
+        var path = AppPaths.GetAssetsPath(
+            "Windows",
+            @"C:\Users\mathe\AppData\Local",
+            @"C:\Users\mathe"
+        );
+
+        // Assert
+        path.ShouldBe(@"C:\Users\mathe\AppData\Local\MdPdf\Assets");
+    }
+
+    [Fact]
+    public void Must_resolve_linux_assets_path_under_xdg_data_home()
+    {
+        // Act
+        var path = AppPaths.GetAssetsPath(
+            "Linux",
+            null,
+            "/home/mathe",
+            xdgDataHome: "/home/mathe/.local/share-custom"
+        );
+
+        // Assert
+        path.ShouldBe("/home/mathe/.local/share-custom/mdpdf/Assets");
+    }
+
+    [Fact]
+    public void Must_resolve_linux_assets_path_under_home_local_share_when_xdg_data_home_is_missing()
+    {
+        // Act
+        var path = AppPaths.GetAssetsPath("Linux", null, "/home/mathe");
+
+        // Assert
+        path.ShouldBe("/home/mathe/.local/share/mdpdf/Assets");
+    }
+
+    [Fact]
+    public void Must_resolve_macos_assets_path_under_application_support()
+    {
+        // Act
+        var path = AppPaths.GetAssetsPath("macOS", null, "/Users/mathe");
+
+        // Assert
+        path.ShouldBe("/Users/mathe/Library/Application Support/MdPdf/Assets");
+    }
 }
