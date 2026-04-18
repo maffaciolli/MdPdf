@@ -15,7 +15,7 @@ It is designed for two use cases:
 - Supports GitHub alert blocks such as `NOTE`, `TIP`, `WARNING`, and `CAUTION`.
 - Supports explicit `--light` and `--dark` theme selection.
 - Resolves an installed browser instead of downloading Chromium at runtime.
-- Supports browser-path persistence in a JSON config file in the app root.
+- Supports browser-path persistence in a JSON config file under the user config directory.
 - Caches stylesheet and Mermaid assets into a local `Assets` folder for user customization.
 - Includes automated tests for parser, config, browser resolution, and HTML generation behavior.
 
