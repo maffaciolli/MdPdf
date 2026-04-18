@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/solution-items/">
+    <File Path=".csharpierignore" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/MdPdf.Console/MdPdf.Console.csproj" />
+    <Project Path="src/MdPdf.Library/MdPdf.Library.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MdPdf.Console.Tests/MdPdf.Console.Tests.csproj" />
+  </Folder>
+</Solution>
