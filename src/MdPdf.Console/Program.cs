@@ -16,7 +16,7 @@ string outputPath;
 bool darkMode = arguments.DarkMode;
 string? browserPath = arguments.BrowserPath;
 var saveBrowserPath = arguments.SaveBrowserPath;
-var configPath = Path.Combine(AppContext.BaseDirectory, "MdPdf.config.json");
+var configPath = AppPaths.GetConfigPath();
 var savedBrowserPath = await BrowserConfig.LoadBrowserPathAsync(configPath);
 var configuredBrowserPath = browserPath ?? savedBrowserPath;
 var inputFilePath = await TryGetInputFilePathAsync(input);
@@ -47,6 +47,7 @@ if (saveBrowserPath)
         );
 
     await BrowserConfig.SaveBrowserPathAsync(configPath, resolvedBrowserPath);
+    Console.WriteLine($"Saved browser path to: {configPath}");
 }
 
 await MarkdownToPdfConverter.RenderToSinglePageAsync(
