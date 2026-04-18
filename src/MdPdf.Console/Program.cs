@@ -4,7 +4,7 @@ var parsedArguments = CommandLineParser.ParseArguments(args);
 if (parsedArguments is null)
 {
     Console.WriteLine(
-        "Usage: mark-to-pdf <markdown-file-or-string> [output-path] [--dark|--light] [--browser-path <path>] [--save-browser-path]"
+        "Usage: mdpdf <markdown-file-or-string> [output-path] [--dark|--light] [--browser-path <path>] [--save-browser-path]"
     );
     return;
 }

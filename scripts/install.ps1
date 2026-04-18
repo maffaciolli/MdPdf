@@ -17,7 +17,14 @@ function Get-DownloadUrl {
         return "https://github.com/$RepoName/releases/latest/download/mdpdf-win-x64.zip"
     }
 
-    return "https://github.com/$RepoName/releases/download/$RequestedVersion/mdpdf-win-x64.zip"
+    $tag = if ($RequestedVersion -match '^v') {
+        $RequestedVersion
+    }
+    else {
+        "v$RequestedVersion"
+    }
+
+    return "https://github.com/$RepoName/releases/download/$tag/mdpdf-win-x64.zip"
 }
 
 function Ensure-UserPathContains {

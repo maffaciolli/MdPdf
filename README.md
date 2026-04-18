@@ -35,13 +35,13 @@ The rendering engine depends on an existing compatible browser installation. Ins
 Install or update the Windows build with the installer script:
 
 ```powershell
-irm https://raw.githubusercontent.com/maffaciolli/MdPdf/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/maffaciolli/MdPdf/master/scripts/install.ps1 | iex
 ```
 
 Pin a specific version:
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/maffaciolli/MdPdf/main/scripts/install.ps1))) -Version 1.2.3
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/maffaciolli/MdPdf/master/scripts/install.ps1))) -Version 1.2.3
 ```
 
 This installs:
@@ -55,13 +55,13 @@ This installs:
 Install or update the Linux build with the installer script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/maffaciolli/MdPdf/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/maffaciolli/MdPdf/master/scripts/install.sh | sh
 ```
 
 Pin a specific version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/maffaciolli/MdPdf/main/scripts/install.sh | VERSION=1.2.3 sh
+curl -fsSL https://raw.githubusercontent.com/maffaciolli/MdPdf/master/scripts/install.sh | VERSION=1.2.3 sh
 ```
 
 This installs:

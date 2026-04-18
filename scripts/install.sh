@@ -32,7 +32,16 @@ cleanup() {
 trap cleanup EXIT INT HUP TERM
 
 if [ "$VERSION" != "latest" ]; then
-  DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$PACKAGE_NAME"
+  case "$VERSION" in
+    v*)
+      TAG="$VERSION"
+      ;;
+    *)
+      TAG="v$VERSION"
+      ;;
+  esac
+
+  DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/$PACKAGE_NAME"
 fi
 
 mkdir -p "$BIN_DIR" "$INSTALL_ROOT" "$EXTRACT_DIR"
