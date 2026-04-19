@@ -226,6 +226,23 @@ public class CommandLineParserTests
     }
 
     [Fact]
+    public void Must_parse_open_flag_when_present()
+    {
+        // Arrange
+        string[] args = ["input.md", "--open"];
+
+        // Act
+        var result = _parser.ParseArguments(args);
+
+        // Assert
+        result.ShouldNotBeNull();
+        var parsed = result!.Value;
+
+        parsed.Input.ShouldBe("input.md");
+        parsed.OpenPdf.ShouldBeTrue();
+    }
+
+    [Fact]
     public void Must_return_null_when_save_browser_path_flag_is_passed_without_input()
     {
         // Arrange

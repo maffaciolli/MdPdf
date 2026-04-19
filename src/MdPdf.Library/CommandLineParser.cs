@@ -9,6 +9,7 @@ public sealed class CommandLineParser
 
         var darkMode = true;
         var saveBrowserPath = false;
+        var openPdf = false;
         string? browserPath = null;
         var positionalArgs = new List<string>();
 
@@ -44,6 +45,12 @@ public sealed class CommandLineParser
                 continue;
             }
 
+            if (string.Equals(arg, "--open", StringComparison.OrdinalIgnoreCase))
+            {
+                openPdf = true;
+                continue;
+            }
+
             positionalArgs.Add(arg);
         }
 
@@ -55,7 +62,8 @@ public sealed class CommandLineParser
             positionalArgs.Count > 1 ? positionalArgs[1] : null,
             darkMode,
             browserPath,
-            saveBrowserPath
+            saveBrowserPath,
+            openPdf
         );
     }
 }
@@ -65,5 +73,6 @@ public readonly record struct ParsedArguments(
     string? OutputPath,
     bool DarkMode,
     string? BrowserPath,
-    bool SaveBrowserPath
+    bool SaveBrowserPath,
+    bool OpenPdf
 );

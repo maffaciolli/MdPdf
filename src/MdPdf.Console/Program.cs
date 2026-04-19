@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Abstractions;
 using MdPdf.Library;
 using MdPdf.Library.Runtime;
@@ -31,7 +32,7 @@ public static class Program
         if (parsedArguments is null)
         {
             Console.WriteLine(
-                "Usage: mdpdf <markdown-file-or-string> [output-path] [--dark|--light] [--browser-path <path>] [--save-browser-path]"
+                "Usage: mdpdf <markdown-file-or-string> [output-path] [--dark|--light] [--browser-path <path>] [--save-browser-path] [--open]"
             );
             return;
         }
@@ -41,6 +42,7 @@ public static class Program
         var darkMode = arguments.DarkMode;
         var browserPath = arguments.BrowserPath;
         var saveBrowserPath = arguments.SaveBrowserPath;
+        var openPdf = arguments.OpenPdf;
         var configPath = appPaths.GetConfigPath();
         var savedBrowserPath = await browserConfig.LoadBrowserPathAsync(configPath);
         var configuredBrowserPath = browserPath ?? savedBrowserPath;
@@ -72,6 +74,30 @@ public static class Program
             resolvedBrowserPath,
             darkMode
         );
+
+        if (openPdf)
+        {
+            TryOpenPdf(resolvedInput.OutputPath);
+        }
+
         Console.WriteLine($"Done! Saved to: {resolvedInput.OutputPath}");
+    }
+
+    private static void TryOpenPdf(string outputPath)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = outputPath,
+                UseShellExecute = true,
+            };
+
+            Process.Start(startInfo);
+        }
+        catch (Exception exception)
+        {
+            Console.WriteLine($"Could not open PDF automatically: {exception.Message}");
+        }
     }
 }
