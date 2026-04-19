@@ -1,3 +1,4 @@
+using System.IO.Abstractions;
 using System.Text.Json;
 
 namespace MdPdf.Library;
@@ -12,10 +13,18 @@ public static class BrowserConfig
 
     public static async Task<string?> LoadBrowserPathAsync(string configPath)
     {
-        if (!File.Exists(configPath))
+        return await LoadBrowserPathAsync(new FileSystem(), configPath);
+    }
+
+    public static async Task<string?> LoadBrowserPathAsync(
+        IFileSystem fileSystem,
+        string configPath
+    )
+    {
+        if (!fileSystem.File.Exists(configPath))
             return null;
 
-        var content = await File.ReadAllTextAsync(configPath);
+        var content = await fileSystem.File.ReadAllTextAsync(configPath);
         if (string.IsNullOrWhiteSpace(content))
             return null;
 
@@ -26,13 +35,22 @@ public static class BrowserConfig
 
     public static async Task SaveBrowserPathAsync(string configPath, string browserPath)
     {
-        var directory = Path.GetDirectoryName(configPath);
+        await SaveBrowserPathAsync(new FileSystem(), configPath, browserPath);
+    }
+
+    public static async Task SaveBrowserPathAsync(
+        IFileSystem fileSystem,
+        string configPath,
+        string browserPath
+    )
+    {
+        var directory = fileSystem.Path.GetDirectoryName(configPath);
         if (!string.IsNullOrWhiteSpace(directory))
-            Directory.CreateDirectory(directory);
+            fileSystem.Directory.CreateDirectory(directory);
 
         var content = JsonSerializer.Serialize(new BrowserConfigFile(browserPath), JsonOptions);
 
-        await File.WriteAllTextAsync(configPath, content);
+        await fileSystem.File.WriteAllTextAsync(configPath, content);
     }
 }
 

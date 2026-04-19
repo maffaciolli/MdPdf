@@ -6,5 +6,6 @@
   <ItemGroup>
     <PackageReference Include="Markdig" />
     <PackageReference Include="PuppeteerSharp" />
+    <PackageReference Include="System.IO.Abstractions" />
   </ItemGroup>
 </Project>

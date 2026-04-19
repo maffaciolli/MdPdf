@@ -5,5 +5,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MdPdf.Library\MdPdf.Library.csproj" />
+    <PackageReference Include="System.IO.Abstractions" />
   </ItemGroup>
 </Project>

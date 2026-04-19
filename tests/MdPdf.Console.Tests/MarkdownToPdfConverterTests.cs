@@ -3,6 +3,74 @@ namespace MdPdf.Console.Tests;
 public class MarkdownToPdfConverterTests
 {
     [Fact]
+    public async Task Must_save_light_stylesheet_to_assets_directory_when_file_is_missing_in_mock_filesystem()
+    {
+        // Arrange
+        const string markdown = "Hello";
+        const string assetsDirectory = @"C:\assets";
+        var fileSystem = new MockFileSystem();
+
+        // Act
+        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
+            markdown,
+            assetsDirectory: assetsDirectory,
+            assetDownloader: async uri =>
+            {
+                if (uri.AbsoluteUri.Contains("mermaid.min.js"))
+                    return "window.mermaid = { initialize() {}, run: async () => {} };";
+
+                return ".markdown-body { background: #ffffff; }";
+            },
+            fileSystem: fileSystem
+        );
+
+        // Assert
+        var stylesheetPath = @"C:\assets\github-markdown-light.min.css";
+
+        fileSystem.File.Exists(stylesheetPath).ShouldBeTrue();
+        fileSystem
+            .File.ReadAllText(stylesheetPath)
+            .ShouldBe(".markdown-body { background: #ffffff; }");
+        html.ShouldContain(".markdown-body { background: #ffffff; }");
+    }
+
+    [Fact]
+    public async Task Must_reuse_cached_mermaid_script_when_asset_already_exists_in_mock_filesystem()
+    {
+        // Arrange
+        const string markdown = "```mermaid\nflowchart TD\nA-->B\n```";
+        const string assetsDirectory = @"C:\assets";
+        var fileSystem = new MockFileSystem(
+            new Dictionary<string, MockFileData>
+            {
+                [@"C:\assets\github-markdown-light.min.css"] = new(".markdown-body { }"),
+                [@"C:\assets\mermaid.min.js"] = new(
+                    "window.mermaid = { initialize() {}, run: async () => {} };"
+                ),
+            }
+        );
+        var downloaderCalled = false;
+
+        // Act
+        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
+            markdown,
+            assetsDirectory: assetsDirectory,
+            assetDownloader: _ =>
+            {
+                downloaderCalled = true;
+                return Task.FromException<string>(
+                    new InvalidOperationException("Downloader should not be called")
+                );
+            },
+            fileSystem: fileSystem
+        );
+
+        // Assert
+        downloaderCalled.ShouldBeFalse();
+        html.ShouldContain("window.mermaid = { initialize() {}, run: async () => {} };");
+    }
+
+    [Fact]
     public async Task Must_render_markdown_content_when_building_html()
     {
         // Arrange

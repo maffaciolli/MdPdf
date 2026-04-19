@@ -1,5 +1,7 @@
 using MdPdf.Library;
+using System.IO.Abstractions;
 
+var fileSystem = new FileSystem();
 var parsedArguments = CommandLineParser.ParseArguments(args);
 if (parsedArguments is null)
 {
@@ -17,24 +19,15 @@ bool darkMode = arguments.DarkMode;
 string? browserPath = arguments.BrowserPath;
 var saveBrowserPath = arguments.SaveBrowserPath;
 var configPath = AppPaths.GetConfigPath();
-var savedBrowserPath = await BrowserConfig.LoadBrowserPathAsync(configPath);
+var savedBrowserPath = await BrowserConfig.LoadBrowserPathAsync(fileSystem, configPath);
 var configuredBrowserPath = browserPath ?? savedBrowserPath;
-var inputFilePath = await TryGetInputFilePathAsync(input);
+var resolvedInput = await MarkdownInputResolver.ResolveAsync(fileSystem, input, arguments.OutputPath);
+markdownContent = resolvedInput.MarkdownContent;
+outputPath = resolvedInput.OutputPath;
 
-if (inputFilePath is not null)
-{
-    markdownContent = await File.ReadAllTextAsync(inputFilePath);
-    outputPath =
-        arguments.OutputPath ?? Path.ChangeExtension(Path.GetFullPath(inputFilePath), ".pdf");
-}
-else
-{
-    markdownContent = input;
-    outputPath =
-        arguments.OutputPath ?? Path.Combine(Directory.GetCurrentDirectory(), "output.pdf");
-}
-
-Console.WriteLine($"Reading from: {(inputFilePath is not null ? inputFilePath : "Raw String")}");
+Console.WriteLine(
+    $"Reading from: {(resolvedInput.InputFilePath is not null ? resolvedInput.InputFilePath : "Raw String")}"
+);
 Console.WriteLine($"Theme: {(darkMode ? "Dark" : "Light")}");
 Console.WriteLine("Rendering PDF...");
 
@@ -46,7 +39,7 @@ if (saveBrowserPath)
             "No browser executable could be resolved, so there is nothing to save."
         );
 
-    await BrowserConfig.SaveBrowserPathAsync(configPath, resolvedBrowserPath);
+    await BrowserConfig.SaveBrowserPathAsync(fileSystem, configPath, resolvedBrowserPath);
     Console.WriteLine($"Saved browser path to: {configPath}");
 }
 
@@ -54,32 +47,7 @@ await MarkdownToPdfConverter.RenderToSinglePageAsync(
     markdownContent,
     outputPath,
     darkMode,
-    browserPath: resolvedBrowserPath
+    browserPath: resolvedBrowserPath,
+    fileSystem: fileSystem
 );
-
 Console.WriteLine($"Done! Saved to: {outputPath}");
-
-static async Task<string?> TryGetInputFilePathAsync(string input)
-{
-    try
-    {
-        await using var _ = new FileStream(
-            input,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 4096,
-            useAsync: true
-        );
-
-        return input;
-    }
-    catch (IOException)
-    {
-        return null;
-    }
-    catch (UnauthorizedAccessException)
-    {
-        return null;
-    }
-}
