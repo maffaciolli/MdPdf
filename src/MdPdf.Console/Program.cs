@@ -87,11 +87,7 @@ public static class Program
     {
         try
         {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = outputPath,
-                UseShellExecute = true,
-            };
+            var startInfo = new ProcessStartInfo { FileName = outputPath, UseShellExecute = true };
 
             Process.Start(startInfo);
         }
