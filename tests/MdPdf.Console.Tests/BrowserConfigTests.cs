@@ -10,9 +10,10 @@ public class BrowserConfigTests
         // Arrange
         var fileSystem = new MockFileSystem();
         var configPath = @"C:\config\MdPdf.config.json";
+        var browserConfig = new BrowserConfig(fileSystem);
 
         // Act
-        var browserPath = await BrowserConfig.LoadBrowserPathAsync(fileSystem, configPath);
+        var browserPath = await browserConfig.LoadBrowserPathAsync(configPath);
 
         // Assert
         browserPath.ShouldBeNull();
@@ -26,9 +27,10 @@ public class BrowserConfigTests
         var fileSystem = new MockFileSystem(
             new Dictionary<string, MockFileData> { [configPath] = new(string.Empty) }
         );
+        var browserConfig = new BrowserConfig(fileSystem);
 
         // Act
-        var browserPath = await BrowserConfig.LoadBrowserPathAsync(fileSystem, configPath);
+        var browserPath = await browserConfig.LoadBrowserPathAsync(configPath);
 
         // Assert
         browserPath.ShouldBeNull();
@@ -45,9 +47,10 @@ public class BrowserConfigTests
                 [configPath] = new("""{"browserPath":"C:\\Browsers\\chrome.exe"}"""),
             }
         );
+        var browserConfig = new BrowserConfig(fileSystem);
 
         // Act
-        var browserPath = await BrowserConfig.LoadBrowserPathAsync(fileSystem, configPath);
+        var browserPath = await browserConfig.LoadBrowserPathAsync(configPath);
 
         // Assert
         browserPath.ShouldBe(@"C:\Browsers\chrome.exe");
@@ -61,9 +64,10 @@ public class BrowserConfigTests
         var fileSystem = new MockFileSystem(
             new Dictionary<string, MockFileData> { [configPath] = new("""{"theme":"dark"}""") }
         );
+        var browserConfig = new BrowserConfig(fileSystem);
 
         // Act
-        var browserPath = await BrowserConfig.LoadBrowserPathAsync(fileSystem, configPath);
+        var browserPath = await browserConfig.LoadBrowserPathAsync(configPath);
 
         // Assert
         browserPath.ShouldBeNull();
@@ -77,10 +81,11 @@ public class BrowserConfigTests
         var fileSystem = new MockFileSystem(
             new Dictionary<string, MockFileData> { [configPath] = new("{ invalid json") }
         );
+        var browserConfig = new BrowserConfig(fileSystem);
 
         // Act
         var exception = await Should.ThrowAsync<JsonException>(() =>
-            BrowserConfig.LoadBrowserPathAsync(fileSystem, configPath)
+            browserConfig.LoadBrowserPathAsync(configPath)
         );
 
         // Assert
@@ -93,9 +98,10 @@ public class BrowserConfigTests
         // Arrange
         var fileSystem = new MockFileSystem();
         var configPath = @"C:\config\MdPdf.config.json";
+        var browserConfig = new BrowserConfig(fileSystem);
 
         // Act
-        await BrowserConfig.SaveBrowserPathAsync(fileSystem, configPath, @"C:\Browsers\chrome.exe");
+        await browserConfig.SaveBrowserPathAsync(configPath, @"C:\Browsers\chrome.exe");
 
         // Assert
         var content = await fileSystem.File.ReadAllTextAsync(configPath);
@@ -108,9 +114,10 @@ public class BrowserConfigTests
         // Arrange
         var fileSystem = new MockFileSystem();
         var configPath = @"C:\users\me\.config\MdPdf.config.json";
+        var browserConfig = new BrowserConfig(fileSystem);
 
         // Act
-        await BrowserConfig.SaveBrowserPathAsync(fileSystem, configPath, @"C:\Browsers\chrome.exe");
+        await browserConfig.SaveBrowserPathAsync(configPath, @"C:\Browsers\chrome.exe");
 
         // Assert
         fileSystem.File.Exists(configPath).ShouldBeTrue();

@@ -1,8 +1,8 @@
 namespace MdPdf.Library;
 
-public static class CommandLineParser
+public sealed class CommandLineParser
 {
-    public static ParsedArguments? ParseArguments(string[] args)
+    public ParsedArguments? ParseArguments(string[] args)
     {
         if (args.Length == 0)
             return null;

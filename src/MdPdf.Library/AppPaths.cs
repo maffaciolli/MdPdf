@@ -1,174 +1,146 @@
+using System.IO.Abstractions;
+using MdPdf.Library.Runtime;
+
 namespace MdPdf.Library;
 
-public static class AppPaths
+public sealed class AppPaths
 {
-    public static string GetConfigPath()
+    private readonly IFileSystem _fileSystem;
+    private readonly ISystemEnvironment _environment;
+
+    public AppPaths(IFileSystem fileSystem, ISystemEnvironment environment)
     {
-        if (OperatingSystem.IsWindows())
+        _fileSystem = fileSystem;
+        _environment = environment;
+    }
+
+    public string GetConfigPath()
+    {
+        if (_environment.IsWindows())
         {
-            return GetConfigPath(
-                "Windows",
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+            var localApplicationData = _environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData
             );
+            return GetWindowsConfigPath(localApplicationData);
         }
 
-        if (OperatingSystem.IsLinux())
+        if (_environment.IsLinux())
         {
             var homeDirectory =
-                Environment.GetEnvironmentVariable("HOME")
-                ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-            return GetConfigPath(
-                "Linux",
-                null,
-                homeDirectory,
-                Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-            );
+                _environment.GetEnvironmentVariable("HOME")
+                ?? _environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var xdgConfigHome = _environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+            return GetLinuxConfigPath(homeDirectory, xdgConfigHome);
         }
 
-        if (OperatingSystem.IsMacOS())
+        if (_environment.IsMacOS())
         {
             var homeDirectory =
-                Environment.GetEnvironmentVariable("HOME")
-                ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-            return GetConfigPath("macOS", null, homeDirectory);
+                _environment.GetEnvironmentVariable("HOME")
+                ?? _environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return GetMacConfigPath(homeDirectory);
         }
 
         throw new PlatformNotSupportedException("Unsupported operating system.");
     }
 
-    public static string GetAssetsPath()
+    public string GetAssetsPath()
     {
-        if (OperatingSystem.IsWindows())
+        if (_environment.IsWindows())
         {
-            return GetAssetsPath(
-                "Windows",
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+            var localApplicationData = _environment.GetFolderPath(
+                Environment.SpecialFolder.LocalApplicationData
             );
+            return GetWindowsAssetsPath(localApplicationData);
         }
 
-        if (OperatingSystem.IsLinux())
+        if (_environment.IsLinux())
         {
             var homeDirectory =
-                Environment.GetEnvironmentVariable("HOME")
-                ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-            return GetAssetsPath(
-                "Linux",
-                null,
-                homeDirectory,
-                Environment.GetEnvironmentVariable("XDG_DATA_HOME")
-            );
+                _environment.GetEnvironmentVariable("HOME")
+                ?? _environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var xdgDataHome = _environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            return GetLinuxAssetsPath(homeDirectory, xdgDataHome);
         }
 
-        if (OperatingSystem.IsMacOS())
+        if (_environment.IsMacOS())
         {
             var homeDirectory =
-                Environment.GetEnvironmentVariable("HOME")
-                ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-            return GetAssetsPath("macOS", null, homeDirectory);
+                _environment.GetEnvironmentVariable("HOME")
+                ?? _environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return GetMacAssetsPath(homeDirectory);
         }
 
         throw new PlatformNotSupportedException("Unsupported operating system.");
     }
 
-    public static string GetConfigPath(
-        string operatingSystem,
-        string? localApplicationData,
-        string homeDirectory,
-        string? xdgConfigHome = null
-    )
+    private string GetWindowsConfigPath(string? localApplicationData)
     {
-        if (string.Equals(operatingSystem, "Windows", StringComparison.OrdinalIgnoreCase))
-        {
-            if (string.IsNullOrWhiteSpace(localApplicationData))
-                throw new InvalidOperationException("Local application data is unavailable.");
+        if (string.IsNullOrWhiteSpace(localApplicationData))
+            throw new InvalidOperationException("Local application data is unavailable.");
 
-            return Path.Combine(localApplicationData, "MdPdf", "MdPdf.config.json");
-        }
-
-        if (string.Equals(operatingSystem, "Linux", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.IsNullOrWhiteSpace(xdgConfigHome))
-                return NormalizeLinuxConfigPath(xdgConfigHome, "mdpdf", "MdPdf.config.json");
-
-            if (string.IsNullOrWhiteSpace(homeDirectory))
-                throw new InvalidOperationException("Home directory is unavailable.");
-
-            return NormalizeLinuxConfigPath(homeDirectory, ".config", "mdpdf", "MdPdf.config.json");
-        }
-
-        if (
-            string.Equals(operatingSystem, "macOS", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(operatingSystem, "MacOS", StringComparison.OrdinalIgnoreCase)
-        )
-        {
-            if (string.IsNullOrWhiteSpace(homeDirectory))
-                throw new InvalidOperationException("Home directory is unavailable.");
-
-            return NormalizeLinuxConfigPath(
-                homeDirectory,
-                "Library",
-                "Application Support",
-                "MdPdf",
-                "MdPdf.config.json"
-            );
-        }
-
-        throw new PlatformNotSupportedException("Unsupported operating system.");
+        return _fileSystem.Path.Combine(localApplicationData, "MdPdf", "MdPdf.config.json");
     }
 
-    public static string GetAssetsPath(
-        string operatingSystem,
-        string? localApplicationData,
-        string homeDirectory,
-        string? xdgDataHome = null
-    )
+    private string GetLinuxConfigPath(string homeDirectory, string? xdgConfigHome)
     {
-        if (string.Equals(operatingSystem, "Windows", StringComparison.OrdinalIgnoreCase))
-        {
-            if (string.IsNullOrWhiteSpace(localApplicationData))
-                throw new InvalidOperationException("Local application data is unavailable.");
+        if (!string.IsNullOrWhiteSpace(xdgConfigHome))
+            return NormalizeLinuxPath(xdgConfigHome, "mdpdf", "MdPdf.config.json");
 
-            return Path.Combine(localApplicationData, "MdPdf", "Assets");
-        }
+        if (string.IsNullOrWhiteSpace(homeDirectory))
+            throw new InvalidOperationException("Home directory is unavailable.");
 
-        if (string.Equals(operatingSystem, "Linux", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.IsNullOrWhiteSpace(xdgDataHome))
-                return NormalizeLinuxConfigPath(xdgDataHome, "mdpdf", "Assets");
-
-            if (string.IsNullOrWhiteSpace(homeDirectory))
-                throw new InvalidOperationException("Home directory is unavailable.");
-
-            return NormalizeLinuxConfigPath(homeDirectory, ".local", "share", "mdpdf", "Assets");
-        }
-
-        if (
-            string.Equals(operatingSystem, "macOS", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(operatingSystem, "MacOS", StringComparison.OrdinalIgnoreCase)
-        )
-        {
-            if (string.IsNullOrWhiteSpace(homeDirectory))
-                throw new InvalidOperationException("Home directory is unavailable.");
-
-            return NormalizeLinuxConfigPath(
-                homeDirectory,
-                "Library",
-                "Application Support",
-                "MdPdf",
-                "Assets"
-            );
-        }
-
-        throw new PlatformNotSupportedException("Unsupported operating system.");
+        return NormalizeLinuxPath(homeDirectory, ".config", "mdpdf", "MdPdf.config.json");
     }
 
-    private static string NormalizeLinuxConfigPath(params string[] segments)
+    private string GetMacConfigPath(string homeDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(homeDirectory))
+            throw new InvalidOperationException("Home directory is unavailable.");
+
+        return NormalizeLinuxPath(
+            homeDirectory,
+            "Library",
+            "Application Support",
+            "MdPdf",
+            "MdPdf.config.json"
+        );
+    }
+
+    private string GetWindowsAssetsPath(string? localApplicationData)
+    {
+        if (string.IsNullOrWhiteSpace(localApplicationData))
+            throw new InvalidOperationException("Local application data is unavailable.");
+
+        return _fileSystem.Path.Combine(localApplicationData, "MdPdf", "Assets");
+    }
+
+    private string GetLinuxAssetsPath(string homeDirectory, string? xdgDataHome)
+    {
+        if (!string.IsNullOrWhiteSpace(xdgDataHome))
+            return NormalizeLinuxPath(xdgDataHome, "mdpdf", "Assets");
+
+        if (string.IsNullOrWhiteSpace(homeDirectory))
+            throw new InvalidOperationException("Home directory is unavailable.");
+
+        return NormalizeLinuxPath(homeDirectory, ".local", "share", "mdpdf", "Assets");
+    }
+
+    private string GetMacAssetsPath(string homeDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(homeDirectory))
+            throw new InvalidOperationException("Home directory is unavailable.");
+
+        return NormalizeLinuxPath(
+            homeDirectory,
+            "Library",
+            "Application Support",
+            "MdPdf",
+            "Assets"
+        );
+    }
+
+    private static string NormalizeLinuxPath(params string[] segments)
     {
         var normalizedSegments = new string[segments.Length];
         for (var i = 0; i < segments.Length; i++)

@@ -7,9 +7,10 @@ public class BrowserPathResolverTests
     {
         // Arrange
         using var browserFile = CreateBrowserFile();
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var resolvedPath = BrowserPathResolver.ResolveBrowserPath(browserFile.Path);
+        var resolvedPath = resolver.ResolveBrowserPath(browserFile.Path);
 
         // Assert
         resolvedPath.ShouldBe(browserFile.Path);
@@ -22,12 +23,10 @@ public class BrowserPathResolverTests
         using var firstBrowserFile = CreateBrowserFile();
         using var secondBrowserFile = CreateBrowserFile();
         var candidatePaths = new[] { firstBrowserFile.Path, secondBrowserFile.Path };
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var resolvedPath = BrowserPathResolver.ResolveBrowserPath(
-            candidatePaths: candidatePaths,
-            fileExists: File.Exists
-        );
+        var resolvedPath = resolver.ResolveBrowserPath(candidatePaths: candidatePaths);
 
         // Assert
         resolvedPath.ShouldBe(firstBrowserFile.Path);
@@ -38,12 +37,10 @@ public class BrowserPathResolverTests
     {
         // Arrange
         var candidatePaths = new[] { "missing-1.exe", "missing-2.exe" };
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var resolvedPath = BrowserPathResolver.ResolveBrowserPath(
-            candidatePaths: candidatePaths,
-            fileExists: _ => false
-        );
+        var resolvedPath = resolver.ResolveBrowserPath(candidatePaths: candidatePaths);
 
         // Assert
         resolvedPath.ShouldBeNull();
@@ -54,10 +51,11 @@ public class BrowserPathResolverTests
     {
         // Arrange
         const string browserPath = @"C:\missing\chrome.exe";
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
         var exception = Should.Throw<InvalidOperationException>(() =>
-            BrowserPathResolver.ResolveBrowserPath(browserPath, fileExists: _ => false)
+            resolver.ResolveBrowserPath(browserPath)
         );
 
         // Assert
@@ -71,9 +69,10 @@ public class BrowserPathResolverTests
     public void Must_return_null_when_browser_command_is_empty(string? command)
     {
         // Arrange
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var executablePath = BrowserPathResolver.ExtractExecutablePathFromCommand(command);
+        var executablePath = resolver.ExtractExecutablePathFromCommand(command);
 
         // Assert
         executablePath.ShouldBeNull();
@@ -95,9 +94,10 @@ public class BrowserPathResolverTests
     )
     {
         // Arrange
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var executablePath = BrowserPathResolver.ExtractExecutablePathFromCommand(command);
+        var executablePath = resolver.ExtractExecutablePathFromCommand(command);
 
         // Assert
         executablePath.ShouldBe(expectedPath);
@@ -111,9 +111,10 @@ public class BrowserPathResolverTests
     )
     {
         // Arrange
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var executablePath = BrowserPathResolver.ExtractExecutablePathFromCommand(command);
+        var executablePath = resolver.ExtractExecutablePathFromCommand(command);
 
         // Assert
         executablePath.ShouldNotBeNull();
@@ -131,12 +132,10 @@ public class BrowserPathResolverTests
     public void Must_extract_executable_path_from_linux_command(string command, string expectedPath)
     {
         // Arrange
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var executablePath = BrowserPathResolver.ExtractExecutablePathFromLinuxCommand(
-            command,
-            _ => true
-        );
+        var executablePath = resolver.ExtractExecutablePathFromLinuxCommand(command, _ => true);
 
         // Assert
         executablePath.ShouldBe(expectedPath);
@@ -146,9 +145,10 @@ public class BrowserPathResolverTests
     public void Must_return_null_when_linux_command_cannot_be_resolved()
     {
         // Arrange
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var executablePath = BrowserPathResolver.ExtractExecutablePathFromLinuxCommand(
+        var executablePath = resolver.ExtractExecutablePathFromLinuxCommand(
             "missing-browser %U",
             _ => false
         );
@@ -162,13 +162,15 @@ public class BrowserPathResolverTests
     {
         // Arrange
         using var browserFile = CreateBrowserFile("google-chrome-stable");
-        using var pathEnvironmentVariable = new TemporaryEnvironmentVariable(
+        var environment = new TestSystemEnvironment { Linux = true };
+        environment.SetEnvironmentVariable(
             "PATH",
             Path.GetDirectoryName(browserFile.Path) ?? string.Empty
         );
+        var resolver = CreateResolver(new FileSystem(), environment);
 
         // Act
-        var executablePath = BrowserPathResolver.ExtractExecutablePathFromLinuxCommand(
+        var executablePath = resolver.ExtractExecutablePathFromLinuxCommand(
             "google-chrome-stable %U",
             File.Exists
         );
@@ -183,16 +185,27 @@ public class BrowserPathResolverTests
         // Arrange
         using var browserFile = CreateBrowserFile();
         var candidatePaths = new[] { browserFile.Path };
+        var resolver = CreateResolver(new FileSystem());
 
         // Act
-        var resolvedPath = BrowserPathResolver.ResolveBrowserPath(
-            "   ",
-            candidatePaths,
-            File.Exists
-        );
+        var resolvedPath = resolver.ResolveBrowserPath("   ", candidatePaths);
 
         // Assert
         resolvedPath.ShouldBe(browserFile.Path);
+    }
+
+    private static BrowserPathResolver CreateResolver(
+        IFileSystem fileSystem,
+        TestSystemEnvironment? environment = null
+    )
+    {
+        environment ??= new TestSystemEnvironment();
+        return new BrowserPathResolver(
+            fileSystem,
+            environment,
+            new TestCommandRunner(),
+            new TestWindowsRegistryReader()
+        );
     }
 
     private sealed class TemporaryBrowserFile : IDisposable
@@ -220,23 +233,5 @@ public class BrowserPathResolverTests
     private static TemporaryBrowserFile CreateBrowserFile(string fileName)
     {
         return new TemporaryBrowserFile(fileName);
-    }
-
-    private sealed class TemporaryEnvironmentVariable : IDisposable
-    {
-        private readonly string _name;
-        private readonly string? _previousValue;
-
-        public TemporaryEnvironmentVariable(string name, string value)
-        {
-            _name = name;
-            _previousValue = Environment.GetEnvironmentVariable(name);
-            Environment.SetEnvironmentVariable(name, value);
-        }
-
-        public void Dispose()
-        {
-            Environment.SetEnvironmentVariable(_name, _previousValue);
-        }
     }
 }

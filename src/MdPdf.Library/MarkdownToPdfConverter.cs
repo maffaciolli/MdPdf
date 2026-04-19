@@ -1,11 +1,12 @@
 using System.IO.Abstractions;
 using Markdig;
+using MdPdf.Library.Runtime;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
 
 namespace MdPdf.Library;
 
-public static class MarkdownToPdfConverter
+public sealed class MarkdownToPdfConverter
 {
     private const string LIGHT_STYLESHEET_FILE_NAME = "github-markdown-light.min.css";
     private const string DARK_STYLESHEET_FILE_NAME = "github-markdown-dark.min.css";
@@ -17,30 +18,33 @@ public static class MarkdownToPdfConverter
     private const string MERMAID_SCRIPT_CDN =
         "https://cdn.jsdelivr.net/npm/mermaid@11.14.0/dist/mermaid.min.js";
 
-    public static async Task<string> BuildHtmlAsync(
-        string markdownContent,
-        bool darkMode = false,
-        string? assetsDirectory = null,
-        Func<Uri, Task<string>>? assetDownloader = null,
-        IFileSystem? fileSystem = null
+    private readonly IFileSystem _fileSystem;
+    private readonly AppPaths _appPaths;
+    private readonly IAssetDownloader _assetDownloader;
+
+    public MarkdownToPdfConverter(
+        IFileSystem fileSystem,
+        AppPaths appPaths,
+        IAssetDownloader assetDownloader
     )
     {
-        fileSystem ??= new FileSystem();
+        _fileSystem = fileSystem;
+        _appPaths = appPaths;
+        _assetDownloader = assetDownloader;
+    }
+
+    public async Task<string> BuildHtmlAsync(
+        string markdownContent,
+        bool darkMode = false,
+        string? assetsDirectory = null
+    )
+    {
         var pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
 
         var htmlBody = Markdown.ToHtml(markdownContent, pipeline);
         var mermaidTheme = darkMode ? "dark" : "default";
-        var stylesheet = await ResolveStylesheetAsync(
-            fileSystem,
-            darkMode,
-            assetsDirectory,
-            assetDownloader
-        );
-        var mermaidScript = await ResolveMermaidScriptAsync(
-            fileSystem,
-            assetsDirectory,
-            assetDownloader
-        );
+        var stylesheet = await ResolveStylesheetAsync(darkMode, assetsDirectory);
+        var mermaidScript = await ResolveMermaidScriptAsync(assetsDirectory);
 
         return $@"
         <!DOCTYPE html>
@@ -96,7 +100,7 @@ public static class MarkdownToPdfConverter
                     {mermaidScript}
                     async function renderDiagrams() {{
                         let mermaidNodes = document.querySelectorAll('code.language-mermaid');
-                        
+
                         if (mermaidNodes.length > 0) {{
                             mermaidNodes.forEach(code => {{
                                 let pre = code.parentElement;
@@ -109,7 +113,7 @@ public static class MarkdownToPdfConverter
                             mermaid.initialize({{ startOnLoad: false, theme: '{mermaidTheme}' }});
                             await mermaid.run({{ querySelector: '.mermaid' }});
                         }}
-                        
+
                         let marker = document.createElement('div');
                         marker.id = 'mermaid-done';
                         document.body.appendChild(marker);
@@ -120,35 +124,21 @@ public static class MarkdownToPdfConverter
         </html>";
     }
 
-    public static async Task RenderToSinglePageAsync(
+    public async Task RenderToSinglePageAsync(
         string markdownContent,
         string outputPath,
+        string browserPath,
         bool darkMode = false,
-        string? assetsDirectory = null,
-        Func<Uri, Task<string>>? assetDownloader = null,
-        string? browserPath = null,
-        IFileSystem? fileSystem = null
+        string? assetsDirectory = null
     )
     {
-        var fullHtml = await BuildHtmlAsync(
-            markdownContent,
-            darkMode,
-            assetsDirectory,
-            assetDownloader,
-            fileSystem
-        );
-
-        var resolvedBrowserPath = BrowserPathResolver.ResolveBrowserPath(browserPath);
-        if (resolvedBrowserPath is null)
-            throw new InvalidOperationException(
-                "No browser executable was found. Set MDPDF_BROWSER_PATH or install Chrome, Edge, or Chromium."
-            );
+        var fullHtml = await BuildHtmlAsync(markdownContent, darkMode, assetsDirectory);
 
         var launchOptions = new LaunchOptions
         {
             Headless = true,
             Args = ["--no-sandbox", "--disable-setuid-sandbox"],
-            ExecutablePath = resolvedBrowserPath,
+            ExecutablePath = browserPath,
         };
 
         using var browser = await Puppeteer.LaunchAsync(launchOptions);
@@ -184,83 +174,55 @@ public static class MarkdownToPdfConverter
         await page.PdfAsync(outputPath, pdfOptions);
     }
 
-    private static async Task<string> ResolveStylesheetAsync(
-        IFileSystem fileSystem,
-        bool darkMode,
-        string? assetsDirectory,
-        Func<Uri, Task<string>>? assetDownloader
-    )
+    private async Task<string> ResolveStylesheetAsync(bool darkMode, string? assetsDirectory)
     {
         var fileName = darkMode ? DARK_STYLESHEET_FILE_NAME : LIGHT_STYLESHEET_FILE_NAME;
         var stylesheetPath = await EnsureLocalAssetAsync(
-            fileSystem,
             fileName,
             darkMode ? DARK_STYLESHEET_CDN : LIGHT_STYLESHEET_CDN,
-            assetsDirectory,
-            assetDownloader
+            assetsDirectory
         );
-        var css = await ReadAllTextAsync(fileSystem, stylesheetPath);
+        var css = await ReadAllTextAsync(stylesheetPath);
         return $"<style>{css}</style>";
     }
 
-    private static async Task<string> ResolveMermaidScriptAsync(
-        IFileSystem fileSystem,
-        string? assetsDirectory,
-        Func<Uri, Task<string>>? assetDownloader
-    )
+    private async Task<string> ResolveMermaidScriptAsync(string? assetsDirectory)
     {
         var scriptPath = await EnsureLocalAssetAsync(
-            fileSystem,
             MERMAID_SCRIPT_FILE_NAME,
             MERMAID_SCRIPT_CDN,
-            assetsDirectory,
-            assetDownloader
+            assetsDirectory
         );
-        return await ReadInlineScriptAsync(fileSystem, scriptPath);
+        return await ReadInlineScriptAsync(scriptPath);
     }
 
-    private static async Task<string> EnsureLocalAssetAsync(
-        IFileSystem fileSystem,
+    private async Task<string> EnsureLocalAssetAsync(
         string fileName,
         string assetCdn,
-        string? assetsDirectory,
-        Func<Uri, Task<string>>? assetDownloader
+        string? assetsDirectory
     )
     {
-        var assetsRoot = assetsDirectory ?? AppPaths.GetAssetsPath();
-        fileSystem.Directory.CreateDirectory(assetsRoot);
+        var assetsRoot = assetsDirectory ?? _appPaths.GetAssetsPath();
+        _fileSystem.Directory.CreateDirectory(assetsRoot);
 
-        var assetPath = fileSystem.Path.Combine(assetsRoot, fileName);
-        if (await CanOpenForReadAsync(fileSystem, assetPath))
+        var assetPath = _fileSystem.Path.Combine(assetsRoot, fileName);
+        if (await CanOpenForReadAsync(assetPath))
             return assetPath;
 
-        var assetUri = new Uri(assetCdn);
-        var assetContent = assetDownloader is null
-            ? await DownloadAssetAsync(assetUri)
-            : await assetDownloader(assetUri);
-
-        await WriteAllTextAsync(fileSystem, assetPath, assetContent);
+        var assetContent = await _assetDownloader.DownloadAsync(new Uri(assetCdn));
+        await WriteAllTextAsync(assetPath, assetContent);
         return assetPath;
     }
 
-    private static async Task<string> ReadInlineScriptAsync(
-        IFileSystem fileSystem,
-        string scriptPath
-    )
+    private async Task<string> ReadInlineScriptAsync(string scriptPath)
     {
-        var scriptContent = await ReadAllTextAsync(fileSystem, scriptPath);
+        var scriptContent = await ReadAllTextAsync(scriptPath);
         return scriptContent.Replace("</script", "<\\/script", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static async Task<string> DownloadAssetAsync(Uri assetUri)
+    private async Task<string> ReadAllTextAsync(string path)
     {
-        using var httpClient = new HttpClient();
-        return await httpClient.GetStringAsync(assetUri);
-    }
-
-    private static async Task<string> ReadAllTextAsync(IFileSystem fileSystem, string path)
-    {
-        await using var stream = fileSystem.FileStream.New(
+        await using var stream = _fileSystem.FileStream.New(
             path,
             FileMode.Open,
             FileAccess.Read,
@@ -273,13 +235,9 @@ public static class MarkdownToPdfConverter
         return await reader.ReadToEndAsync();
     }
 
-    private static async Task WriteAllTextAsync(
-        IFileSystem fileSystem,
-        string path,
-        string contents
-    )
+    private async Task WriteAllTextAsync(string path, string contents)
     {
-        await using var stream = fileSystem.FileStream.New(
+        await using var stream = _fileSystem.FileStream.New(
             path,
             FileMode.Create,
             FileAccess.Write,
@@ -293,11 +251,11 @@ public static class MarkdownToPdfConverter
         await writer.FlushAsync();
     }
 
-    private static async Task<bool> CanOpenForReadAsync(IFileSystem fileSystem, string path)
+    private async Task<bool> CanOpenForReadAsync(string path)
     {
         try
         {
-            await using var _ = fileSystem.FileStream.New(
+            await using var _ = _fileSystem.FileStream.New(
                 path,
                 FileMode.Open,
                 FileAccess.Read,

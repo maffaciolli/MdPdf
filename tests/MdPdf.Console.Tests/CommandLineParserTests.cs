@@ -2,6 +2,8 @@ namespace MdPdf.Console.Tests;
 
 public class CommandLineParserTests
 {
+    private readonly CommandLineParser _parser = new();
+
     [Fact]
     public void Must_return_null_when_no_arguments_are_passed()
     {
@@ -9,7 +11,7 @@ public class CommandLineParserTests
         string[] args = [];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldBeNull();
@@ -22,7 +24,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "out.pdf"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -40,7 +42,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--light"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -58,7 +60,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--dark"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -76,7 +78,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--light", "--dark"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -94,7 +96,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--LIGHT"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -112,7 +114,7 @@ public class CommandLineParserTests
         string[] args = ["--dark", "--light"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldBeNull();
@@ -125,7 +127,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--browser-path", @"C:\Chrome\chrome.exe"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -144,7 +146,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--BROWSER-PATH", @"C:\Chrome\chrome.exe"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -161,7 +163,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--browser-path"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldBeNull();
@@ -181,7 +183,7 @@ public class CommandLineParserTests
         ];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -197,7 +199,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--browser-path", "--custom-browser"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -213,7 +215,7 @@ public class CommandLineParserTests
         string[] args = ["input.md", "--save-browser-path"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldNotBeNull();
@@ -230,7 +232,7 @@ public class CommandLineParserTests
         string[] args = ["--save-browser-path"];
 
         // Act
-        var result = CommandLineParser.ParseArguments(args);
+        var result = _parser.ParseArguments(args);
 
         // Assert
         result.ShouldBeNull();

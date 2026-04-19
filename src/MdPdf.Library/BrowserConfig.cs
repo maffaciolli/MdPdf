@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace MdPdf.Library;
 
-public static class BrowserConfig
+public sealed class BrowserConfig
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -11,20 +11,19 @@ public static class BrowserConfig
         WriteIndented = true,
     };
 
-    public static async Task<string?> LoadBrowserPathAsync(string configPath)
+    private readonly IFileSystem _fileSystem;
+
+    public BrowserConfig(IFileSystem fileSystem)
     {
-        return await LoadBrowserPathAsync(new FileSystem(), configPath);
+        _fileSystem = fileSystem;
     }
 
-    public static async Task<string?> LoadBrowserPathAsync(
-        IFileSystem fileSystem,
-        string configPath
-    )
+    public async Task<string?> LoadBrowserPathAsync(string configPath)
     {
-        if (!fileSystem.File.Exists(configPath))
+        if (!_fileSystem.File.Exists(configPath))
             return null;
 
-        var content = await fileSystem.File.ReadAllTextAsync(configPath);
+        var content = await _fileSystem.File.ReadAllTextAsync(configPath);
         if (string.IsNullOrWhiteSpace(content))
             return null;
 
@@ -33,24 +32,15 @@ public static class BrowserConfig
         return string.IsNullOrWhiteSpace(config?.BrowserPath) ? null : config.BrowserPath;
     }
 
-    public static async Task SaveBrowserPathAsync(string configPath, string browserPath)
+    public async Task SaveBrowserPathAsync(string configPath, string browserPath)
     {
-        await SaveBrowserPathAsync(new FileSystem(), configPath, browserPath);
-    }
-
-    public static async Task SaveBrowserPathAsync(
-        IFileSystem fileSystem,
-        string configPath,
-        string browserPath
-    )
-    {
-        var directory = fileSystem.Path.GetDirectoryName(configPath);
+        var directory = _fileSystem.Path.GetDirectoryName(configPath);
         if (!string.IsNullOrWhiteSpace(directory))
-            fileSystem.Directory.CreateDirectory(directory);
+            _fileSystem.Directory.CreateDirectory(directory);
 
         var content = JsonSerializer.Serialize(new BrowserConfigFile(browserPath), JsonOptions);
 
-        await fileSystem.File.WriteAllTextAsync(configPath, content);
+        await _fileSystem.File.WriteAllTextAsync(configPath, content);
     }
 }
 

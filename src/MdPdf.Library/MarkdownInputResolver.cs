@@ -2,22 +2,25 @@ using System.IO.Abstractions;
 
 namespace MdPdf.Library;
 
-public static class MarkdownInputResolver
+public sealed class MarkdownInputResolver
 {
-    public static async Task<ResolvedMarkdownInput> ResolveAsync(
-        IFileSystem fileSystem,
-        string input,
-        string? outputPath
-    )
+    private readonly IFileSystem _fileSystem;
+
+    public MarkdownInputResolver(IFileSystem fileSystem)
     {
-        var inputFilePath = await TryGetInputFilePathAsync(fileSystem, input);
+        _fileSystem = fileSystem;
+    }
+
+    public async Task<ResolvedMarkdownInput> ResolveAsync(string input, string? outputPath)
+    {
+        var inputFilePath = await TryGetInputFilePathAsync(input);
         if (inputFilePath is not null)
         {
-            var markdownContent = await fileSystem.File.ReadAllTextAsync(inputFilePath);
+            var markdownContent = await _fileSystem.File.ReadAllTextAsync(inputFilePath);
             var resolvedOutputPath =
                 outputPath
-                ?? fileSystem.Path.ChangeExtension(
-                    fileSystem.Path.GetFullPath(inputFilePath),
+                ?? _fileSystem.Path.ChangeExtension(
+                    _fileSystem.Path.GetFullPath(inputFilePath),
                     ".pdf"
                 );
 
@@ -27,22 +30,19 @@ public static class MarkdownInputResolver
         return new ResolvedMarkdownInput(
             input,
             outputPath
-                ?? fileSystem.Path.Combine(
-                    fileSystem.Directory.GetCurrentDirectory(),
+                ?? _fileSystem.Path.Combine(
+                    _fileSystem.Directory.GetCurrentDirectory(),
                     "output.pdf"
                 ),
             null
         );
     }
 
-    private static async Task<string?> TryGetInputFilePathAsync(
-        IFileSystem fileSystem,
-        string input
-    )
+    private async Task<string?> TryGetInputFilePathAsync(string input)
     {
         try
         {
-            await using var _ = fileSystem.FileStream.New(
+            await using var _ = _fileSystem.FileStream.New(
                 input,
                 FileMode.Open,
                 FileAccess.Read,

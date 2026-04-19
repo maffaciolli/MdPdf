@@ -9,20 +9,22 @@ public class MarkdownToPdfConverterTests
         const string markdown = "Hello";
         const string assetsDirectory = @"C:\assets";
         var fileSystem = new MockFileSystem();
-
-        // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            markdown,
+        var converter = CreateConverter(
+            fileSystem,
             assetsDirectory: assetsDirectory,
-            assetDownloader: async uri =>
+            download: uri =>
             {
                 if (uri.AbsoluteUri.Contains("mermaid.min.js"))
-                    return "window.mermaid = { initialize() {}, run: async () => {} };";
+                    return Task.FromResult(
+                        "window.mermaid = { initialize() {}, run: async () => {} };"
+                    );
 
-                return ".markdown-body { background: #ffffff; }";
-            },
-            fileSystem: fileSystem
+                return Task.FromResult(".markdown-body { background: #ffffff; }");
+            }
         );
+
+        // Act
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory);
 
         // Assert
         var stylesheetPath = @"C:\assets\github-markdown-light.min.css";
@@ -50,20 +52,20 @@ public class MarkdownToPdfConverterTests
             }
         );
         var downloaderCalled = false;
-
-        // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            markdown,
+        var converter = CreateConverter(
+            fileSystem,
             assetsDirectory: assetsDirectory,
-            assetDownloader: _ =>
+            download: _ =>
             {
                 downloaderCalled = true;
                 return Task.FromException<string>(
                     new InvalidOperationException("Downloader should not be called")
                 );
-            },
-            fileSystem: fileSystem
+            }
         );
+
+        // Act
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory);
 
         // Assert
         downloaderCalled.ShouldBeFalse();
@@ -74,7 +76,7 @@ public class MarkdownToPdfConverterTests
     public async Task Must_render_markdown_content_when_building_html()
     {
         // Arrange
-        const string MARKDOWN = "**bold**";
+        const string markdown = "**bold**";
         using var assetsDirectory = CreateAssetsDirectory();
         await WriteStylesheetAsync(
             assetsDirectory.Path,
@@ -86,16 +88,14 @@ public class MarkdownToPdfConverterTests
             "mermaid.min.js",
             "window.mermaid = { initialize() {}, run: async () => {} };"
         );
+        var converter = CreateConverter(new FileSystem(), assetsDirectory.Path);
 
         // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path
-        );
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         html.ShouldContain("<strong>bold</strong>");
-        html.ShouldNotContain(MARKDOWN);
+        html.ShouldNotContain(markdown);
         html.ShouldContain("window.mermaid = { initialize() {}, run: async () => {} };");
         html.ShouldNotContain("import mermaid");
     }
@@ -104,21 +104,24 @@ public class MarkdownToPdfConverterTests
     public async Task Must_save_light_stylesheet_to_assets_directory_when_file_is_missing()
     {
         // Arrange
-        const string MARKDOWN = "Hello";
+        const string markdown = "Hello";
         using var assetsDirectory = CreateAssetsDirectory();
-
-        // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path,
-            assetDownloader: async uri =>
+        var converter = CreateConverter(
+            new FileSystem(),
+            assetsDirectory.Path,
+            download: uri =>
             {
                 if (uri.AbsoluteUri.Contains("mermaid.min.js"))
-                    return "window.mermaid = { initialize() {}, run: async () => {} };";
+                    return Task.FromResult(
+                        "window.mermaid = { initialize() {}, run: async () => {} };"
+                    );
 
-                return ".markdown-body { background: #ffffff; }";
+                return Task.FromResult(".markdown-body { background: #ffffff; }");
             }
         );
+
+        // Act
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         var stylesheetPath = Path.Combine(assetsDirectory.Path, "github-markdown-light.min.css");
@@ -133,7 +136,7 @@ public class MarkdownToPdfConverterTests
     public async Task Must_reuse_cached_stylesheet_when_asset_already_exists()
     {
         // Arrange
-        const string MARKDOWN = "Hello";
+        const string markdown = "Hello";
         using var assetsDirectory = CreateAssetsDirectory();
         await WriteStylesheetAsync(
             assetsDirectory.Path,
@@ -147,12 +150,10 @@ public class MarkdownToPdfConverterTests
         );
         var stylesheetPath = Path.Combine(assetsDirectory.Path, "github-markdown-light.min.css");
         var downloaderCalled = false;
-
-        // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path,
-            assetDownloader: _ =>
+        var converter = CreateConverter(
+            new FileSystem(),
+            assetsDirectory.Path,
+            download: _ =>
             {
                 downloaderCalled = true;
                 return Task.FromException<string>(
@@ -160,6 +161,9 @@ public class MarkdownToPdfConverterTests
                 );
             }
         );
+
+        // Act
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         downloaderCalled.ShouldBeFalse();
@@ -171,21 +175,27 @@ public class MarkdownToPdfConverterTests
     public async Task Must_save_dark_stylesheet_to_assets_directory_when_file_is_missing()
     {
         // Arrange
-        const string MARKDOWN = "Hello";
+        const string markdown = "Hello";
         using var assetsDirectory = CreateAssetsDirectory();
-
-        // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            darkMode: true,
-            assetsDirectory: assetsDirectory.Path,
-            assetDownloader: async uri =>
+        var converter = CreateConverter(
+            new FileSystem(),
+            assetsDirectory.Path,
+            download: uri =>
             {
                 if (uri.AbsoluteUri.Contains("mermaid.min.js"))
-                    return "window.mermaid = { initialize() {}, run: async () => {} };";
+                    return Task.FromResult(
+                        "window.mermaid = { initialize() {}, run: async () => {} };"
+                    );
 
-                return ".markdown-body { background: #0d1117; }";
+                return Task.FromResult(".markdown-body { background: #0d1117; }");
             }
+        );
+
+        // Act
+        var html = await converter.BuildHtmlAsync(
+            markdown,
+            darkMode: true,
+            assetsDirectory: assetsDirectory.Path
         );
 
         // Assert
@@ -201,7 +211,7 @@ public class MarkdownToPdfConverterTests
     public async Task Must_reuse_cached_mermaid_script_when_asset_already_exists()
     {
         // Arrange
-        const string MARKDOWN = "```mermaid\nflowchart TD\nA-->B\n```";
+        const string markdown = "```mermaid\nflowchart TD\nA-->B\n```";
         using var assetsDirectory = CreateAssetsDirectory();
         await WriteStylesheetAsync(
             assetsDirectory.Path,
@@ -215,12 +225,10 @@ public class MarkdownToPdfConverterTests
         );
         var scriptPath = Path.Combine(assetsDirectory.Path, "mermaid.min.js");
         var downloaderCalled = false;
-
-        // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path,
-            assetDownloader: _ =>
+        var converter = CreateConverter(
+            new FileSystem(),
+            assetsDirectory.Path,
+            download: _ =>
             {
                 downloaderCalled = true;
                 return Task.FromException<string>(
@@ -228,6 +236,9 @@ public class MarkdownToPdfConverterTests
                 );
             }
         );
+
+        // Act
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         downloaderCalled.ShouldBeFalse();
@@ -240,7 +251,7 @@ public class MarkdownToPdfConverterTests
     public async Task Must_build_light_theme_html_when_dark_mode_is_false()
     {
         // Arrange
-        const string MARKDOWN = "Hello";
+        const string markdown = "Hello";
         using var assetsDirectory = CreateAssetsDirectory();
         await WriteStylesheetAsync(
             assetsDirectory.Path,
@@ -252,23 +263,21 @@ public class MarkdownToPdfConverterTests
             "mermaid.min.js",
             "window.mermaid = { initialize() {}, run: async () => {} };"
         );
+        var converter = CreateConverter(new FileSystem(), assetsDirectory.Path);
 
         // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path
-        );
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         html.ShouldContain("theme: 'default'");
-        html.ShouldContain(MARKDOWN);
+        html.ShouldContain(markdown);
     }
 
     [Fact]
     public async Task Must_include_page_padding_styles_when_building_html()
     {
         // Arrange
-        const string MARKDOWN = "Hello";
+        const string markdown = "Hello";
         using var assetsDirectory = CreateAssetsDirectory();
         await WriteStylesheetAsync(
             assetsDirectory.Path,
@@ -280,12 +289,10 @@ public class MarkdownToPdfConverterTests
             "mermaid.min.js",
             "window.mermaid = { initialize() {}, run: async () => {} };"
         );
+        var converter = CreateConverter(new FileSystem(), assetsDirectory.Path);
 
         // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path
-        );
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         html.ShouldContain("padding: 24px;");
@@ -297,7 +304,7 @@ public class MarkdownToPdfConverterTests
     public async Task Must_include_github_alert_background_styles_when_building_html()
     {
         // Arrange
-        const string MARKDOWN = "> [!TIP]\n> Example";
+        const string markdown = "> [!TIP]\n> Example";
         using var assetsDirectory = CreateAssetsDirectory();
         await WriteStylesheetAsync(
             assetsDirectory.Path,
@@ -309,12 +316,10 @@ public class MarkdownToPdfConverterTests
             "mermaid.min.js",
             "window.mermaid = { initialize() {}, run: async () => {} };"
         );
+        var converter = CreateConverter(new FileSystem(), assetsDirectory.Path);
 
         // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path
-        );
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         html.ShouldContain(".markdown-body .markdown-alert-tip");
@@ -327,13 +332,11 @@ public class MarkdownToPdfConverterTests
     {
         // Arrange
         using var assetsDirectory = CreateAssetsDirectory();
-        const string MARKDOWN = "```mermaid\nflowchart TD\nA-->B\n```";
-
-        // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path,
-            assetDownloader: uri =>
+        const string markdown = "```mermaid\nflowchart TD\nA-->B\n```";
+        var converter = CreateConverter(
+            new FileSystem(),
+            assetsDirectory.Path,
+            download: uri =>
             {
                 if (uri.AbsoluteUri.Contains("github-markdown"))
                     return Task.FromResult(".markdown-body { }");
@@ -341,6 +344,9 @@ public class MarkdownToPdfConverterTests
                 return Task.FromResult("window.mermaid = { x: '</script>' };");
             }
         );
+
+        // Act
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         html.ShouldContain("<\\/script>");
@@ -351,7 +357,7 @@ public class MarkdownToPdfConverterTests
     public async Task Must_build_dark_theme_html_when_dark_mode_is_true()
     {
         // Arrange
-        const string MARKDOWN = "Hello";
+        const string markdown = "Hello";
         using var assetsDirectory = CreateAssetsDirectory();
         await WriteStylesheetAsync(
             assetsDirectory.Path,
@@ -363,10 +369,11 @@ public class MarkdownToPdfConverterTests
             "mermaid.min.js",
             "window.mermaid = { initialize() {}, run: async () => {} };"
         );
+        var converter = CreateConverter(new FileSystem(), assetsDirectory.Path);
 
         // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
+        var html = await converter.BuildHtmlAsync(
+            markdown,
             darkMode: true,
             assetsDirectory: assetsDirectory.Path
         );
@@ -379,17 +386,18 @@ public class MarkdownToPdfConverterTests
     public async Task Must_surface_download_errors_when_asset_download_fails()
     {
         // Arrange
-        const string MARKDOWN = "Hello";
+        const string markdown = "Hello";
         using var assetsDirectory = CreateAssetsDirectory();
+        var converter = CreateConverter(
+            new FileSystem(),
+            assetsDirectory.Path,
+            download: _ =>
+                Task.FromException<string>(new InvalidOperationException("download failed"))
+        );
 
         // Act
         var exception = await Should.ThrowAsync<InvalidOperationException>(() =>
-            MarkdownToPdfConverter.BuildHtmlAsync(
-                MARKDOWN,
-                assetsDirectory: assetsDirectory.Path,
-                assetDownloader: _ =>
-                    Task.FromException<string>(new InvalidOperationException("download failed"))
-            )
+            converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path)
         );
 
         // Assert
@@ -400,21 +408,24 @@ public class MarkdownToPdfConverterTests
     public async Task Must_save_mermaid_script_to_assets_directory_when_file_is_missing()
     {
         // Arrange
-        const string MARKDOWN = "```mermaid\nflowchart TD\nA-->B\n```";
+        const string markdown = "```mermaid\nflowchart TD\nA-->B\n```";
         using var assetsDirectory = CreateAssetsDirectory();
-
-        // Act
-        var html = await MarkdownToPdfConverter.BuildHtmlAsync(
-            MARKDOWN,
-            assetsDirectory: assetsDirectory.Path,
-            assetDownloader: async uri =>
+        var converter = CreateConverter(
+            new FileSystem(),
+            assetsDirectory.Path,
+            download: uri =>
             {
                 if (uri.AbsoluteUri.Contains("mermaid.min.js"))
-                    return "window.mermaid = { initialize() {}, run: async () => {} };";
+                    return Task.FromResult(
+                        "window.mermaid = { initialize() {}, run: async () => {} };"
+                    );
 
-                return ".markdown-body { }";
+                return Task.FromResult(".markdown-body { }");
             }
         );
+
+        // Act
+        var html = await converter.BuildHtmlAsync(markdown, assetsDirectory: assetsDirectory.Path);
 
         // Assert
         var scriptPath = Path.Combine(assetsDirectory.Path, "mermaid.min.js");
@@ -423,6 +434,32 @@ public class MarkdownToPdfConverterTests
         File.ReadAllText(scriptPath)
             .ShouldBe("window.mermaid = { initialize() {}, run: async () => {} };");
         html.ShouldContain("window.mermaid = { initialize() {}, run: async () => {} };");
+    }
+
+    private static MarkdownToPdfConverter CreateConverter(
+        IFileSystem fileSystem,
+        string assetsDirectory,
+        Func<Uri, Task<string>>? download = null
+    )
+    {
+        var environment = new TestSystemEnvironment { Windows = true };
+        environment.SetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData,
+            Path.GetTempPath()
+        );
+        environment.SetFolderPath(Environment.SpecialFolder.UserProfile, Path.GetTempPath());
+        var appPaths = new AppPaths(fileSystem, environment);
+        var downloader = new DelegatingAssetDownloader(
+            download
+                ?? (
+                    _ =>
+                        Task.FromResult(
+                            "window.mermaid = { initialize() {}, run: async () => {} };"
+                        )
+                )
+        );
+
+        return new MarkdownToPdfConverter(fileSystem, appPaths, downloader);
     }
 
     private sealed class TempAssetsDirectory : IDisposable

@@ -10,13 +10,10 @@ public class MarkdownInputResolverTests
             new Dictionary<string, MockFileData> { [@"C:\docs\input.md"] = new("# Title") },
             @"C:\work"
         );
+        var resolver = new MarkdownInputResolver(fileSystem);
 
         // Act
-        var result = await MarkdownInputResolver.ResolveAsync(
-            fileSystem,
-            @"C:\docs\input.md",
-            outputPath: null
-        );
+        var result = await resolver.ResolveAsync(@"C:\docs\input.md", outputPath: null);
 
         // Assert
         result.InputFilePath.ShouldBe(@"C:\docs\input.md");
@@ -29,13 +26,10 @@ public class MarkdownInputResolverTests
     {
         // Arrange
         var fileSystem = new MockFileSystem(new Dictionary<string, MockFileData>(), @"C:\work");
+        var resolver = new MarkdownInputResolver(fileSystem);
 
         // Act
-        var result = await MarkdownInputResolver.ResolveAsync(
-            fileSystem,
-            "# Inline",
-            outputPath: null
-        );
+        var result = await resolver.ResolveAsync("# Inline", outputPath: null);
 
         // Assert
         result.InputFilePath.ShouldBeNull();

@@ -1,24 +1,38 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
+using System.IO.Abstractions;
 using System.Runtime.Versioning;
-using Microsoft.Win32;
+using MdPdf.Library.Runtime;
 
 namespace MdPdf.Library;
 
-public static class BrowserPathResolver
+public sealed class BrowserPathResolver
 {
-    public static string? ResolveBrowserPath(
-        string? configuredBrowserPath = null,
-        IEnumerable<string>? candidatePaths = null,
-        Func<string, bool>? fileExists = null
+    private readonly IFileSystem _fileSystem;
+    private readonly ISystemEnvironment _environment;
+    private readonly ICommandRunner _commandRunner;
+    private readonly IWindowsRegistryReader _windowsRegistryReader;
+
+    public BrowserPathResolver(
+        IFileSystem fileSystem,
+        ISystemEnvironment environment,
+        ICommandRunner commandRunner,
+        IWindowsRegistryReader windowsRegistryReader
     )
     {
-        fileExists ??= File.Exists;
+        _fileSystem = fileSystem;
+        _environment = environment;
+        _commandRunner = commandRunner;
+        _windowsRegistryReader = windowsRegistryReader;
+    }
 
+    public string? ResolveBrowserPath(
+        string? configuredBrowserPath = null,
+        IEnumerable<string>? candidatePaths = null
+    )
+    {
         var explicitBrowserPath = GetConfiguredBrowserPath(configuredBrowserPath);
         if (explicitBrowserPath is not null)
         {
-            if (fileExists(explicitBrowserPath))
+            if (_fileSystem.File.Exists(explicitBrowserPath))
                 return explicitBrowserPath;
 
             throw new InvalidOperationException(
@@ -29,7 +43,7 @@ public static class BrowserPathResolver
         candidatePaths ??= GetDefaultCandidatePaths();
         foreach (var candidatePath in candidatePaths)
         {
-            if (fileExists(candidatePath))
+            if (_fileSystem.File.Exists(candidatePath))
                 return candidatePath;
         }
 
@@ -44,27 +58,27 @@ public static class BrowserPathResolver
         return null;
     }
 
-    private static IEnumerable<string> GetDefaultCandidatePaths()
+    private IEnumerable<string> GetDefaultCandidatePaths()
     {
-        if (OperatingSystem.IsWindows())
+        if (_environment.IsWindows())
             return GetWindowsCandidatePaths();
 
-        if (OperatingSystem.IsLinux())
+        if (_environment.IsLinux())
             return GetLinuxCandidatePaths();
 
-        if (OperatingSystem.IsMacOS())
+        if (_environment.IsMacOS())
             return GetMacCandidatePaths();
 
         return [];
     }
 
     [SupportedOSPlatform("windows")]
-    private static IEnumerable<string> GetWindowsCandidatePaths()
+    private IEnumerable<string> GetWindowsCandidatePaths()
     {
         var defaultBrowserPath = TryGetWindowsDefaultBrowserExecutablePath();
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        var localAppData = Environment.GetFolderPath(
+        var programFiles = _environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = _environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        var localAppData = _environment.GetFolderPath(
             Environment.SpecialFolder.LocalApplicationData
         );
 
@@ -73,20 +87,44 @@ public static class BrowserPathResolver
             candidates.Add(defaultBrowserPath);
 
         candidates.AddRange([
-            Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
-            Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
-            Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe"),
-            Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe"),
-            Path.Combine(localAppData, "Google", "Chrome", "Application", "chrome.exe"),
-            Path.Combine(localAppData, "Microsoft", "Edge", "Application", "msedge.exe"),
-            Path.Combine(localAppData, "Chromium", "Application", "chrome.exe"),
+            _fileSystem.Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
+            _fileSystem.Path.Combine(
+                programFilesX86,
+                "Google",
+                "Chrome",
+                "Application",
+                "chrome.exe"
+            ),
+            _fileSystem.Path.Combine(
+                programFiles,
+                "Microsoft",
+                "Edge",
+                "Application",
+                "msedge.exe"
+            ),
+            _fileSystem.Path.Combine(
+                programFilesX86,
+                "Microsoft",
+                "Edge",
+                "Application",
+                "msedge.exe"
+            ),
+            _fileSystem.Path.Combine(localAppData, "Google", "Chrome", "Application", "chrome.exe"),
+            _fileSystem.Path.Combine(
+                localAppData,
+                "Microsoft",
+                "Edge",
+                "Application",
+                "msedge.exe"
+            ),
+            _fileSystem.Path.Combine(localAppData, "Chromium", "Application", "chrome.exe"),
         ]);
 
         return candidates;
     }
 
     [SupportedOSPlatform("linux")]
-    private static IEnumerable<string> GetLinuxCandidatePaths()
+    private IEnumerable<string> GetLinuxCandidatePaths()
     {
         var defaultBrowserPath = TryGetLinuxDefaultBrowserExecutablePath();
 
@@ -105,7 +143,7 @@ public static class BrowserPathResolver
         return candidates;
     }
 
-    private static IEnumerable<string> GetMacCandidatePaths()
+    private IEnumerable<string> GetMacCandidatePaths()
     {
         return
         [
@@ -115,7 +153,7 @@ public static class BrowserPathResolver
         ];
     }
 
-    internal static string? ExtractExecutablePathFromCommand(string? command)
+    internal string? ExtractExecutablePathFromCommand(string? command)
     {
         if (string.IsNullOrWhiteSpace(command))
             return null;
@@ -125,7 +163,9 @@ public static class BrowserPathResolver
         {
             var closingQuoteIndex = trimmedCommand.IndexOf('"', 1);
             if (closingQuoteIndex > 1)
-                return Environment.ExpandEnvironmentVariables(trimmedCommand[1..closingQuoteIndex]);
+                return _environment.ExpandEnvironmentVariables(
+                    trimmedCommand[1..closingQuoteIndex]
+                );
         }
 
         var executableMatch = System.Text.RegularExpressions.Regex.Match(
@@ -135,14 +175,14 @@ public static class BrowserPathResolver
         );
 
         if (executableMatch.Success)
-            return Environment.ExpandEnvironmentVariables(
+            return _environment.ExpandEnvironmentVariables(
                 executableMatch.Groups["path"].Value.Trim()
             );
 
         return null;
     }
 
-    internal static string? ExtractExecutablePathFromLinuxCommand(
+    internal string? ExtractExecutablePathFromLinuxCommand(
         string? command,
         Func<string, bool>? fileExists = null
     )
@@ -150,14 +190,14 @@ public static class BrowserPathResolver
         if (string.IsNullOrWhiteSpace(command))
             return null;
 
-        fileExists ??= File.Exists;
+        fileExists ??= _fileSystem.File.Exists;
 
         var trimmedCommand = command.Trim();
         var firstToken = ReadFirstToken(trimmedCommand);
         if (string.IsNullOrWhiteSpace(firstToken))
             return null;
 
-        var executablePath = Environment.ExpandEnvironmentVariables(firstToken);
+        var executablePath = _environment.ExpandEnvironmentVariables(firstToken);
         if (fileExists(executablePath))
             return executablePath;
 
@@ -165,9 +205,9 @@ public static class BrowserPathResolver
     }
 
     [SupportedOSPlatform("windows")]
-    private static string? TryGetWindowsDefaultBrowserExecutablePath()
+    private string? TryGetWindowsDefaultBrowserExecutablePath()
     {
-        if (!OperatingSystem.IsWindows())
+        if (!_environment.IsWindows())
             return null;
 
         foreach (var scheme in new[] { "http", "https" })
@@ -176,9 +216,10 @@ public static class BrowserPathResolver
             if (string.IsNullOrWhiteSpace(progId))
                 continue;
 
-            var command = Registry
-                .GetValue($@"HKEY_CLASSES_ROOT\{progId}\shell\open\command", null, null)
-                ?.ToString();
+            var command = _windowsRegistryReader.GetClassesRootValue(
+                $@"{progId}\shell\open\command",
+                null
+            );
 
             var executablePath = ExtractExecutablePathFromCommand(command);
             if (!string.IsNullOrWhiteSpace(executablePath))
@@ -189,23 +230,21 @@ public static class BrowserPathResolver
     }
 
     [SupportedOSPlatform("windows")]
-    private static string? TryGetWindowsDefaultBrowserProgId(string scheme)
+    private string? TryGetWindowsDefaultBrowserProgId(string scheme)
     {
         var userChoiceKeyPath =
             $@"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\{scheme}\UserChoice";
-        using var userChoiceKey = Registry.CurrentUser.OpenSubKey(userChoiceKeyPath);
-        var progId = userChoiceKey?.GetValue("ProgId") as string;
+        var progId = _windowsRegistryReader.GetCurrentUserValue(userChoiceKeyPath, "ProgId");
         if (!string.IsNullOrWhiteSpace(progId))
             return progId;
 
-        using var schemeKey = Registry.ClassesRoot.OpenSubKey(scheme);
-        return schemeKey?.GetValue(null) as string;
+        return _windowsRegistryReader.GetClassesRootValue(scheme, null);
     }
 
     [SupportedOSPlatform("linux")]
-    private static string? TryGetLinuxDefaultBrowserExecutablePath()
+    private string? TryGetLinuxDefaultBrowserExecutablePath()
     {
-        if (!OperatingSystem.IsLinux())
+        if (!_environment.IsLinux())
             return null;
 
         var desktopEntry = TryGetLinuxDefaultBrowserDesktopEntry();
@@ -221,7 +260,7 @@ public static class BrowserPathResolver
     }
 
     [SupportedOSPlatform("linux")]
-    private static string? TryGetLinuxDefaultBrowserDesktopEntry()
+    private string? TryGetLinuxDefaultBrowserDesktopEntry()
     {
         foreach (
             var command in new[]
@@ -231,7 +270,7 @@ public static class BrowserPathResolver
             }
         )
         {
-            var output = RunCommand(command[0], command[1..]);
+            var output = _commandRunner.Run(command[0], command[1..]);
             if (!string.IsNullOrWhiteSpace(output))
                 return output.Trim();
         }
@@ -240,12 +279,12 @@ public static class BrowserPathResolver
     }
 
     [SupportedOSPlatform("linux")]
-    private static string? FindLinuxDesktopEntryPath(string desktopEntry)
+    private string? FindLinuxDesktopEntryPath(string desktopEntry)
     {
         var candidateDirectories = new[]
         {
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            _fileSystem.Path.Combine(
+                _environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".local",
                 "share",
                 "applications"
@@ -256,8 +295,8 @@ public static class BrowserPathResolver
 
         foreach (var directory in candidateDirectories)
         {
-            var candidatePath = Path.Combine(directory, desktopEntry);
-            if (File.Exists(candidatePath))
+            var candidatePath = _fileSystem.Path.Combine(directory, desktopEntry);
+            if (_fileSystem.File.Exists(candidatePath))
                 return candidatePath;
         }
 
@@ -265,9 +304,9 @@ public static class BrowserPathResolver
     }
 
     [SupportedOSPlatform("linux")]
-    private static string? ReadLinuxDesktopExecLine(string desktopEntryPath)
+    private string? ReadLinuxDesktopExecLine(string desktopEntryPath)
     {
-        foreach (var line in File.ReadLines(desktopEntryPath))
+        foreach (var line in _fileSystem.File.ReadLines(desktopEntryPath))
         {
             var trimmedLine = line.Trim();
             if (!trimmedLine.StartsWith("Exec=", StringComparison.Ordinal))
@@ -296,62 +335,30 @@ public static class BrowserPathResolver
         return spaceIndex < 0 ? trimmedCommand : trimmedCommand[..spaceIndex];
     }
 
-    private static string? TryResolveFromPath(string command, Func<string, bool> fileExists)
+    private string? TryResolveFromPath(string command, Func<string, bool> fileExists)
     {
         if (
-            command.Contains(Path.DirectorySeparatorChar)
-            || command.Contains(Path.AltDirectorySeparatorChar)
+            command.Contains(_fileSystem.Path.DirectorySeparatorChar)
+            || command.Contains(_fileSystem.Path.AltDirectorySeparatorChar)
         )
             return null;
 
-        var pathVariable = Environment.GetEnvironmentVariable("PATH");
+        var pathVariable = _environment.GetEnvironmentVariable("PATH");
         if (string.IsNullOrWhiteSpace(pathVariable))
             return null;
 
         foreach (
             var pathEntry in pathVariable.Split(
-                Path.PathSeparator,
+                _fileSystem.Path.PathSeparator,
                 StringSplitOptions.RemoveEmptyEntries
             )
         )
         {
-            var candidatePath = Path.Combine(pathEntry.Trim(), command);
+            var candidatePath = _fileSystem.Path.Combine(pathEntry.Trim(), command);
             if (fileExists(candidatePath))
                 return candidatePath;
         }
 
         return null;
-    }
-
-    [SupportedOSPlatform("windows")]
-    [SupportedOSPlatform("linux")]
-    private static string? RunCommand(string fileName, IEnumerable<string> arguments)
-    {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = fileName,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-            };
-
-            foreach (var argument in arguments)
-                startInfo.ArgumentList.Add(argument);
-
-            using var process = Process.Start(startInfo);
-            if (process is null)
-                return null;
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit(2000);
-            return process.ExitCode == 0 ? output : null;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
     }
 }
