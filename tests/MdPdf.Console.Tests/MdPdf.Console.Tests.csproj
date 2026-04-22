@@ -17,5 +17,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MdPdf.Library\MdPdf.Library.csproj" />
+    <ProjectReference Include="..\..\src\MdPdf.Console\MdPdf.Console.csproj" />
   </ItemGroup>
 </Project>

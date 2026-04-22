@@ -5,8 +5,17 @@ using MdPdf.Library.Runtime;
 
 public static class Program
 {
+    private const string UsageMessage =
+        "Usage: mdpdf <markdown-file-or-string> [output-path] [--dark|--light] [--browser-path <path>] [--save-browser-path] [--open] [--help]";
+
     public static async Task Main(string[] args)
     {
+        if (ShouldShowHelp(args))
+        {
+            Console.WriteLine(UsageMessage);
+            return;
+        }
+
         var fileSystem = new FileSystem();
         var environment = new SystemEnvironment();
         var commandRunner = new CommandRunner();
@@ -31,9 +40,7 @@ public static class Program
         var parsedArguments = commandLineParser.ParseArguments(args);
         if (parsedArguments is null)
         {
-            Console.WriteLine(
-                "Usage: mdpdf <markdown-file-or-string> [output-path] [--dark|--light] [--browser-path <path>] [--save-browser-path] [--open]"
-            );
+            Console.WriteLine(UsageMessage);
             return;
         }
 
@@ -95,5 +102,19 @@ public static class Program
         {
             Console.WriteLine($"Could not open PDF automatically: {exception.Message}");
         }
+    }
+
+    private static bool ShouldShowHelp(string[] args)
+    {
+        foreach (var arg in args)
+        {
+            if (string.Equals(arg, "--help", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (string.Equals(arg, "-h", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }
