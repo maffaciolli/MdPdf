@@ -26,6 +26,7 @@ public class ProgramTests
 
         // Assert
         output.ToString().ShouldContain("Usage: mdpdf");
+        output.ToString().ShouldContain("--portrait|--landscape");
         output.ToString().ShouldNotContain("Rendering PDF...");
     }
 }

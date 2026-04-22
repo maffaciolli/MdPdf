@@ -33,6 +33,7 @@ public class CommandLineParserTests
         parsed.Input.ShouldBe("input.md");
         parsed.OutputPath.ShouldBe("out.pdf");
         parsed.DarkMode.ShouldBeTrue();
+        parsed.Landscape.ShouldBeFalse();
     }
 
     [Fact]
@@ -240,6 +241,72 @@ public class CommandLineParserTests
 
         parsed.Input.ShouldBe("input.md");
         parsed.OpenPdf.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Must_use_landscape_when_landscape_flag_is_present()
+    {
+        // Arrange
+        string[] args = ["input.md", "--landscape"];
+
+        // Act
+        var result = _parser.ParseArguments(args);
+
+        // Assert
+        result.ShouldNotBeNull();
+        var parsed = result!.Value;
+
+        parsed.Input.ShouldBe("input.md");
+        parsed.Landscape.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Must_use_portrait_when_portrait_flag_is_present()
+    {
+        // Arrange
+        string[] args = ["input.md", "--portrait"];
+
+        // Act
+        var result = _parser.ParseArguments(args);
+
+        // Assert
+        result.ShouldNotBeNull();
+        var parsed = result!.Value;
+
+        parsed.Input.ShouldBe("input.md");
+        parsed.Landscape.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Must_use_the_last_orientation_flag_when_both_flags_are_passed()
+    {
+        // Arrange
+        string[] args = ["input.md", "--portrait", "--landscape"];
+
+        // Act
+        var result = _parser.ParseArguments(args);
+
+        // Assert
+        result.ShouldNotBeNull();
+        var parsed = result!.Value;
+
+        parsed.Landscape.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Must_ignore_flag_casing_when_parsing_orientation_flags()
+    {
+        // Arrange
+        string[] args = ["input.md", "--LANDSCAPE"];
+
+        // Act
+        var result = _parser.ParseArguments(args);
+
+        // Assert
+        result.ShouldNotBeNull();
+        var parsed = result!.Value;
+
+        parsed.Landscape.ShouldBeTrue();
     }
 
     [Fact]

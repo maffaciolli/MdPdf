@@ -8,6 +8,7 @@ public sealed class CommandLineParser
             return null;
 
         var darkMode = true;
+        var landscape = false;
         var saveBrowserPath = false;
         var openPdf = false;
         string? browserPath = null;
@@ -26,6 +27,18 @@ public sealed class CommandLineParser
             if (string.Equals(arg, "--dark", StringComparison.OrdinalIgnoreCase))
             {
                 darkMode = true;
+                continue;
+            }
+
+            if (string.Equals(arg, "--portrait", StringComparison.OrdinalIgnoreCase))
+            {
+                landscape = false;
+                continue;
+            }
+
+            if (string.Equals(arg, "--landscape", StringComparison.OrdinalIgnoreCase))
+            {
+                landscape = true;
                 continue;
             }
 
@@ -61,6 +74,7 @@ public sealed class CommandLineParser
             positionalArgs[0],
             positionalArgs.Count > 1 ? positionalArgs[1] : null,
             darkMode,
+            landscape,
             browserPath,
             saveBrowserPath,
             openPdf
@@ -72,6 +86,7 @@ public readonly record struct ParsedArguments(
     string Input,
     string? OutputPath,
     bool DarkMode,
+    bool Landscape,
     string? BrowserPath,
     bool SaveBrowserPath,
     bool OpenPdf

@@ -6,7 +6,7 @@ using MdPdf.Library.Runtime;
 public static class Program
 {
     private const string UsageMessage =
-        "Usage: mdpdf <markdown-file-or-string> [output-path] [--dark|--light] [--browser-path <path>] [--save-browser-path] [--open] [--help]";
+        "Usage: mdpdf <markdown-file-or-string> [output-path] [--dark|--light] [--portrait|--landscape] [--browser-path <path>] [--save-browser-path] [--open] [--help]";
 
     public static async Task Main(string[] args)
     {
@@ -47,6 +47,7 @@ public static class Program
         var arguments = parsedArguments.Value;
         var input = arguments.Input;
         var darkMode = arguments.DarkMode;
+        var landscape = arguments.Landscape;
         var browserPath = arguments.BrowserPath;
         var saveBrowserPath = arguments.SaveBrowserPath;
         var openPdf = arguments.OpenPdf;
@@ -59,6 +60,7 @@ public static class Program
             $"Reading from: {(resolvedInput.InputFilePath is not null ? resolvedInput.InputFilePath : "Raw String")}"
         );
         Console.WriteLine($"Theme: {(darkMode ? "Dark" : "Light")}");
+        Console.WriteLine($"Orientation: {(landscape ? "Landscape" : "Portrait")}");
         Console.WriteLine("Rendering PDF...");
 
         var resolvedBrowserPath = browserPathResolver.ResolveBrowserPath(configuredBrowserPath);
@@ -79,7 +81,8 @@ public static class Program
             resolvedInput.MarkdownContent,
             resolvedInput.OutputPath,
             resolvedBrowserPath,
-            darkMode
+            darkMode,
+            landscape
         );
 
         if (openPdf)

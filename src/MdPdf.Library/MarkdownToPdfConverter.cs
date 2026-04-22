@@ -129,6 +129,7 @@ public sealed class MarkdownToPdfConverter
         string outputPath,
         string browserPath,
         bool darkMode = false,
+        bool landscape = false,
         string? assetsDirectory = null
     )
     {
@@ -160,6 +161,7 @@ public sealed class MarkdownToPdfConverter
         var pdfOptions = new PdfOptions
         {
             PrintBackground = true,
+            Landscape = landscape,
             Width = "980px",
             Height = $"{contentHeight + 2}px",
             MarginOptions = new MarginOptions
