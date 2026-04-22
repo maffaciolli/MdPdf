@@ -52,6 +52,8 @@ tar -xzf "$ARCHIVE_PATH" -C "$EXTRACT_DIR"
 rm -rf "$CURRENT_DIR"
 mv "$EXTRACT_DIR" "$CURRENT_DIR"
 
+chmod +x "$CURRENT_DIR/$PACKAGED_EXE"
+
 ln -sfn "$CURRENT_DIR/$PACKAGED_EXE" "$BIN_DIR/mdpdf"
 
 echo "Installed to: $CURRENT_DIR"
@@ -64,5 +66,3 @@ case ":$PATH:" in
     echo "export PATH=\"$BIN_DIR:\$PATH\""
     ;;
 esac
-
-echo "Browser prerequisite: MdPdf requires Chrome, Edge, or Chromium already installed."

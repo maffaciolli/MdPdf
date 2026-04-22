@@ -86,7 +86,6 @@ if ($WhatIfPreference) {
     Write-Host "Would install to: $currentDirectory"
     Write-Host "Would create shim: $shimPath"
     Write-Host "Would ensure user PATH contains: $binDirectory"
-    Write-Host 'Browser prerequisite: Chrome, Edge, or Chromium must already be installed.'
     return
 }
 
@@ -120,4 +119,3 @@ Write-Host "MdPdf installed to: $currentDirectory"
 Write-Host "Command shim: $shimPath"
 Write-Host "PATH update: added $binDirectory to the user PATH."
 Write-Host 'Open a new terminal for the PATH change to take effect.'
-Write-Host 'Browser prerequisite: Chrome, Edge, or Chromium must already be installed.'
